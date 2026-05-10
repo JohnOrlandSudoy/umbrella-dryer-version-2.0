@@ -6,12 +6,40 @@ import {
   plantOperationalWatts,
   PLANT_BLOWER_RATED_WATTS,
 } from '../constants/plantElectrical'
-import { useMachineStore } from '../store/machineStore'
+import {
+  type MachineStatus,
+  useMachineStore,
+} from '../store/machineStore'
 import type { SlotState } from '../simulation/SlotManager'
 
-/** Chamber display: base 34°C → 80°C max at full heat. */
-function chamberTempC(heatLevel: number): string {
-  return (34 + heatLevel * 46).toFixed(1)
+/** Idle / paused / door open: room air near chamber (°C display). */
+const CHAMBER_AMBIENT_DISPLAY_C = 32.5
+/** Running with heat on: matches bench range (~45°C low slip → 80°C max coil). */
+const CHAMBER_HEAT_MIN_C = 45
+const CHAMBER_HEAT_MAX_C = 80
+
+function chamberDisplayCRounded(params: {
+  status: MachineStatus
+  heatLevel: number
+  systemActive: boolean
+  doorOpen: boolean
+  eStopLatched: boolean
+}): string {
+  const heating =
+    params.status === 'running' &&
+    params.systemActive &&
+    !params.doorOpen &&
+    !params.eStopLatched &&
+    params.heatLevel > 0.01
+
+  if (!heating) {
+    return CHAMBER_AMBIENT_DISPLAY_C.toFixed(1)
+  }
+
+  const t =
+    CHAMBER_HEAT_MIN_C +
+    params.heatLevel * (CHAMBER_HEAT_MAX_C - CHAMBER_HEAT_MIN_C)
+  return t.toFixed(1)
 }
 
 const lcdMono: React.CSSProperties = {
@@ -66,6 +94,7 @@ export function LcdPanel() {
   const prevPage = useSimulationUiStore((s) => s.prevLcdPage)
   const status = useMachineStore((s) => s.status)
   const heatLevel = useMachineStore((s) => s.heatLevel)
+  const systemActive = useMachineStore((s) => s.systemActive)
   const impellerSpinEnabled = useMachineStore((s) => s.impellerSpinEnabled)
   const doorOpen = useMachineStore((s) => s.doorOpen)
   const eStopLatched = useMachineStore((s) => s.eStopLatched)
@@ -82,8 +111,20 @@ export function LcdPanel() {
 
   const slot =
     snapshot.slots.find((s) => s.id === page) ?? snapshot.slots[0]
-  const chamberTemp = chamberTempC(heatLevel)
-  const coilRated = heaterCoilNameplateWatts(sys.heaterCoilPreset)
+  const chamberTemp = chamberDisplayCRounded({
+    status,
+    heatLevel,
+    systemActive,
+    doorOpen,
+    eStopLatched,
+  })
+  const chamberHeatingActive =
+    status === 'running' &&
+    systemActive &&
+    !doorOpen &&
+    !eStopLatched &&
+    heatLevel > 0.01
+  const coilRated = heaterCoilNameplateWatts(heaterCoilPreset)
   const totalPower = plantW.heaterW + plantW.blowerW
 
   const dryingElapsedSec =
@@ -134,7 +175,7 @@ export function LcdPanel() {
             </span>
           </div>
           <div>
-            Blower (plant): {plantW.blower.toFixed(0)} W
+            Blower (plant): {plantW.blowerW.toFixed(0)} W
             <span style={{ opacity: 0.85, fontSize: 12 }}>
               {' '}
               (rated {PLANT_BLOWER_RATED_WATTS} W ~1100 CFM)
@@ -142,7 +183,15 @@ export function LcdPanel() {
           </div>
           <div>Plant total: {totalPower.toFixed(0)} W</div>
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
-          <div>Chamber Temp: {chamberTemp}°C</div>
+          <div
+            title={
+              chamberHeatingActive
+                ? 'Heater commanding air: LCD maps slider from 45°C (effective dry band start) to 80°C max.'
+                : '~Room air when heater not commanding (idle, paused, door open, e-stop, or heat slider at 0).'
+            }
+          >
+            Chamber Temp: {chamberTemp}°C
+          </div>
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
           <div
             style={{
@@ -231,8 +280,8 @@ export function LcdPanel() {
 export function FixedLcdSidebar() {
   const panelExpanded = useMachineStore((s) => s.controlPanelExpanded)
   const bottomClass = panelExpanded
-    ? 'bottom-[10.75rem] max-md:bottom-[11.75rem]'
-    : 'bottom-[5rem] max-md:bottom-[5.5rem]'
+    ? 'bottom-[9rem] max-md:bottom-[10rem]'
+    : 'bottom-[4.5rem] max-md:bottom-[5rem]'
 
   return (
     <aside

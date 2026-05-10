@@ -23,12 +23,14 @@ function chamberDisplayCRounded(params: {
   heatLevel: number
   systemActive: boolean
   doorOpen: boolean
+  doorLocked: boolean
   eStopLatched: boolean
 }): string {
   const heating =
     params.status === 'running' &&
     params.systemActive &&
     !params.doorOpen &&
+    params.doorLocked &&
     !params.eStopLatched &&
     params.heatLevel > 0.01
 
@@ -97,6 +99,7 @@ export function LcdPanel() {
   const systemActive = useMachineStore((s) => s.systemActive)
   const impellerSpinEnabled = useMachineStore((s) => s.impellerSpinEnabled)
   const doorOpen = useMachineStore((s) => s.doorOpen)
+  const doorLocked = useMachineStore((s) => s.doorLocked)
   const eStopLatched = useMachineStore((s) => s.eStopLatched)
   const heaterCoilPreset = useMachineStore((s) => s.heaterCoilPreset)
 
@@ -116,12 +119,14 @@ export function LcdPanel() {
     heatLevel,
     systemActive,
     doorOpen,
+    doorLocked,
     eStopLatched,
   })
   const chamberHeatingActive =
     status === 'running' &&
     systemActive &&
     !doorOpen &&
+    doorLocked &&
     !eStopLatched &&
     heatLevel > 0.01
   const coilRated = heaterCoilNameplateWatts(heaterCoilPreset)
@@ -146,6 +151,12 @@ export function LcdPanel() {
             Queue #{slot.queueNumber ?? '–'}
           </div>
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
+          {!slot.occupied && (
+            <div style={{ fontSize: 12, opacity: 0.88, marginBottom: 8, lineHeight: 1.35 }}>
+              No umbrella in this slot. START runs the plant only; load here via 3D START → Insert →
+              Add. Foldable → slots 5–8; long → 1–4.
+            </div>
+          )}
           <div>Type: {slot.occupied ? slot.umbrellaType ?? '–' : '—'}</div>
           <div>Fabric: {slot.occupied ? slot.fabricType ?? '–' : '—'}</div>
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
@@ -157,12 +168,14 @@ export function LcdPanel() {
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
           <div>
             Drying time:{' '}
-            {slot.occupied && slot.status !== 'ready' && slot.dryingStartTime != null
-              ? `${dryingElapsedSec.toFixed(1)} s · running`
-              : slot.occupied && slot.status === 'ready' &&
-                  slot.dryingDurationSec != null
-                ? `${slot.dryingDurationSec.toFixed(1)} s (complete)`
-                : '—'}
+            {slot.occupied && slot.status !== 'ready' && slot.dryingStartTime == null
+              ? '— · close & lock door'
+              : slot.occupied && slot.status !== 'ready' && slot.dryingStartTime != null
+                ? `${dryingElapsedSec.toFixed(1)} s · running`
+                : slot.occupied && slot.status === 'ready' &&
+                    slot.dryingDurationSec != null
+                  ? `${slot.dryingDurationSec.toFixed(1)} s (complete)`
+                  : '—'}
           </div>
           <hr style={{ borderColor: '#00ff41', margin: '8px 0' }} />
           <div>Status: {statusLabel(slot.status)}</div>
@@ -187,7 +200,7 @@ export function LcdPanel() {
             title={
               chamberHeatingActive
                 ? 'Heater commanding air: LCD maps slider from 45°C (effective dry band start) to 80°C max.'
-                : '~Room air when heater not commanding (idle, paused, door open, e-stop, or heat slider at 0).'
+                : '~Room air when heater not commanding (idle, paused, door open/unlocked, e-stop, or heat slider at 0).'
             }
           >
             Chamber Temp: {chamberTemp}°C
@@ -252,6 +265,8 @@ export function LcdPanel() {
                   <br />
                   {r.status === 'ready' && r.dryingDurationSec != null ? (
                     `Dry time: ${r.dryingDurationSec.toFixed(1)} s`
+                  ) : r.status !== 'ready' && r.dryingStartTime == null ? (
+                    'Waiting: close & lock door to start dry cycle in chamber'
                   ) : r.dryingStartTime != null && r.status !== 'ready' ? (
                     `Elapsed: ${((Date.now() - r.dryingStartTime) / 1000).toFixed(1)} s`
                   ) : (

@@ -18,6 +18,13 @@ function ElapsedTimer() {
     if (status !== 'running') return
     const interval = setInterval(() => {
       const store = useMachineStore.getState()
+      if (
+        store.doorOpen ||
+        !store.doorLocked ||
+        store.eStopLatched
+      ) {
+        return
+      }
       const next = store.elapsed + 0.1
       if (next >= store.cycleTime) {
         pauseCycle()

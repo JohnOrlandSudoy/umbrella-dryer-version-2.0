@@ -786,10 +786,11 @@ function UmbrellaDryerModel() {
     useMachineStore.getState().processResumeTimers()
 
     const sys = useMachineStore.getState()
+    const chamberSealed = !sys.doorOpen && sys.doorLocked
     const allowSim =
-      sys.systemActive && !sys.eStopLatched && !sys.doorOpen
+      sys.systemActive && !sys.eStopLatched && chamberSealed
     const allowMotion =
-      sys.systemActive && !sys.eStopLatched && !sys.doorOpen
+      sys.systemActive && !sys.eStopLatched && chamberSealed
 
     if (allowSim) {
       slotManager.updateAllSlots(delta)
@@ -954,10 +955,12 @@ function FallbackModel() {
     impellerSpinEnabled,
     heatLevel,
     doorOpen,
+    doorLocked,
     systemActive,
     eStopLatched,
   } = useMachineStore()
-  const allowMotion = systemActive && !eStopLatched && !doorOpen
+  const allowMotion =
+    systemActive && !eStopLatched && !doorOpen && doorLocked
   const fbClockRef = useRef(new THREE.Clock())
   const rackRef = useRef<THREE.Group>(null)
   const fanRef = useRef<THREE.Group>(null)

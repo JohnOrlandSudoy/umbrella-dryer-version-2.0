@@ -173,7 +173,8 @@ export class SlotManager {
 
     const now = Date.now()
     slot.insertionTime = now
-    slot.dryingStartTime = now
+    /** Set when simulation actually runs (door closed, system active) — not at insert while door may be open. */
+    slot.dryingStartTime = null
 
     slot.moistureLevel = moistureLevelLabel(data.moistureContent)
     slot.status = data.moistureContent > 15 ? 'wet' : 'drying'
@@ -223,6 +224,10 @@ export class SlotManager {
     for (let i = 1; i <= 8; i++) {
       const slot = this.slots[i]
       if (!slot.occupied || slot.status === 'ready') continue
+
+      if (slot.dryingStartTime == null) {
+        slot.dryingStartTime = Date.now()
+      }
 
       const fabric = slot.fabricType ?? 'nylon'
       const rate = dryingRatePercentPerSecond(fabric) * timeMultiplier

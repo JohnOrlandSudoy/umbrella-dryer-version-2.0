@@ -42,7 +42,10 @@ export function InsertModal() {
       waterLoad: phys.waterLoadMl,
       dryMass: phys.dryMassGrams,
     })
-    if (ok) pushSnapshot()
+    if (ok) {
+      pushSnapshot()
+      useSimulationUiStore.getState().setLcdPage(slotId)
+    }
   }
 
   if (!open) return null

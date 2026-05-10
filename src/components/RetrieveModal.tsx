@@ -1,5 +1,7 @@
 import { useEffect, useReducer } from 'react'
+import { plantOperationalWatts } from '../constants/plantElectrical'
 import { slotManager } from '../simulation/SlotManager'
+import { useMachineStore } from '../store/machineStore'
 import { useSimulationUiStore } from '../store/simulationUiStore'
 import { useSlotSnapshotStore } from '../store/slotSnapshotStore'
 
@@ -12,6 +14,21 @@ export function RetrieveModal() {
 
   const open = useSimulationUiStore((s) => s.retrieveModalOpen)
   const close = useSimulationUiStore((s) => s.closeRetrieveModal)
+  const status = useMachineStore((s) => s.status)
+  const heatLevel = useMachineStore((s) => s.heatLevel)
+  const impellerSpinEnabled = useMachineStore((s) => s.impellerSpinEnabled)
+  const doorOpen = useMachineStore((s) => s.doorOpen)
+  const eStopLatched = useMachineStore((s) => s.eStopLatched)
+  const heaterCoilPreset = useMachineStore((s) => s.heaterCoilPreset)
+
+  const plantW = plantOperationalWatts({
+    status,
+    heatLevel,
+    impellerSpinEnabled,
+    doorOpen,
+    eStopLatched,
+    heaterCoilPreset,
+  })
 
   const pushSnapshot = () =>
     useSlotSnapshotStore.getState().setSnapshot(slotManager.snapshot())
@@ -40,6 +57,10 @@ export function RetrieveModal() {
           <p className="text-zinc-500 text-xs mt-1">
             Removing a slot resets it immediately. READY items stay until retrieved.
           </p>
+          <p className="text-zinc-500 text-[10px] mt-1.5 leading-snug">
+            Plant power (shared): heater {plantW.heaterW} W · blower {plantW.blowerW} W · total{' '}
+            {plantW.heaterW + plantW.blowerW} W when cycle running
+          </p>
         </div>
         <div className="p-4 space-y-2">
           {occupied.length === 0 ? (
@@ -61,6 +82,12 @@ export function RetrieveModal() {
                   <span className="uppercase">{s.status}</span>
                   {' · '}
                   {s.moistureContent.toFixed(1)}%
+                  {s.status === 'ready' && s.dryingDurationSec != null && (
+                    <span className="text-emerald-400">
+                      {' '}
+                      · Dry {s.dryingDurationSec.toFixed(0)}s
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"

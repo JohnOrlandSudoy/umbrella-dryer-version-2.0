@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { slotManager } from '../simulation/SlotManager'
-import type { FabricType, UmbrellaType } from '../simulation/SlotManager'
+import { slotManager, sampleInsertPhysics } from '../simulation/SlotManager'
+import type {
+  FabricType,
+  UmbrellaType,
+  WetnessTier,
+} from '../simulation/SlotManager'
 import { useSimulationUiStore } from '../store/simulationUiStore'
 import { useMachineStore } from '../store/machineStore'
 import { useSlotSnapshotStore } from '../store/slotSnapshotStore'
@@ -20,8 +24,7 @@ export function InsertModal() {
 
   const [umbrellaType, setUmbrellaType] = useState<UmbrellaType>('foldable')
   const [fabric, setFabric] = useState<FabricType>('nylon')
-  const [moisture, setMoisture] = useState(18)
-  const [mass, setMass] = useState(320)
+  const [wetnessTier, setWetnessTier] = useState<WetnessTier>('medium')
 
   const pushSnapshot = () =>
     useSlotSnapshotStore.getState().setSnapshot(slotManager.snapshot())
@@ -31,13 +34,13 @@ export function InsertModal() {
     if (snapshot.slots[slotId - 1]?.occupied) return
     if (!slotMatchesUmbrellaType(slotId, umbrellaType)) return
 
-    const waterLoad = (moisture / 32) * 150
+    const phys = sampleInsertPhysics(wetnessTier)
     const ok = slotManager.insertUmbrella(slotId, {
       type: umbrellaType,
       fabric,
-      moisture,
-      waterLoad,
-      mass,
+      moistureContent: phys.moisturePercent,
+      waterLoad: phys.waterLoadMl,
+      dryMass: phys.dryMassGrams,
     })
     if (ok) pushSnapshot()
   }
@@ -50,8 +53,8 @@ export function InsertModal() {
         <div className="border-b border-zinc-700 px-4 py-3">
           <h2 className="text-zinc-100 text-base font-semibold">Insert umbrella</h2>
           <p className="text-zinc-500 text-xs mt-1">
-            Set type and moisture once, then tap <strong className="text-zinc-400">Add</strong> on each
-            empty slot. You can fill several slots before closing.
+            Wetness tier picks random spray (mL) and moisture % per insert. Polyester dries ~2s per
+            1%; nylon ~4s per 1%, until ~3% moisture.
           </p>
           {!doorOpen && (
             <p className="text-amber-400 text-xs mt-2">
@@ -83,35 +86,27 @@ export function InsertModal() {
               onChange={(e) => setFabric(e.target.value as FabricType)}
               className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100"
             >
-              <option value="polyester">Polyester</option>
-              <option value="nylon">Nylon</option>
+              <option value="polyester">Polyester (~2 s / %)</option>
+              <option value="nylon">Nylon (~4 s / %)</option>
             </select>
           </div>
           <div>
             <label className="text-zinc-400 text-xs uppercase tracking-wide">
-              Initial moisture %
+              Wetness (random mL + % each Add)
             </label>
-            <input
-              type="range"
-              min={1}
-              max={32}
-              step={0.5}
-              value={moisture}
-              onChange={(e) => setMoisture(parseFloat(e.target.value))}
-              className="mt-2 w-full accent-emerald-500"
-            />
-            <div className="text-zinc-300 text-xs text-right">{moisture.toFixed(1)}%</div>
-          </div>
-          <div>
-            <label className="text-zinc-400 text-xs uppercase tracking-wide">Mass (g)</label>
-            <input
-              type="number"
-              min={50}
-              max={800}
-              value={mass}
-              onChange={(e) => setMass(Number(e.target.value))}
+            <select
+              value={wetnessTier}
+              onChange={(e) => setWetnessTier(e.target.value as WetnessTier)}
               className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100"
-            />
+            >
+              <option value="light">Light — 20–50 mL, moisture &lt;10%</option>
+              <option value="medium">Medium — 60–100 mL, moisture 11–15%</option>
+              <option value="heavy">Heavy — 101–150 mL, moisture 16–32%</option>
+            </select>
+            <p className="text-[11px] text-zinc-500 mt-1.5">
+              Dry shell mass randomized 250–400 g per umbrella; wet mass decreases as water
+              evaporates.
+            </p>
           </div>
 
           <div>

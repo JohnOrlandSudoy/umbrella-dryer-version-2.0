@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { SlotSnapshot } from '../simulation/SlotManager'
-
 function emptySlots(): SlotSnapshot {
   const slots = Array.from({ length: 8 }, (_, i) => ({
     id: i + 1,
@@ -12,6 +11,10 @@ function emptySlots(): SlotSnapshot {
     moistureLevel: null as 'Light Wet' | 'Medium Wet' | 'Heavy Wet' | null,
     waterLoad: 0,
     mass: 0,
+    dryMass: 0,
+    initialMoistureContent: 0,
+    initialWaterLoad: 0,
+    dryingDurationSec: null as number | null,
     status: 'empty' as const,
     heaterWatts: 0,
     blowerWatts: 0,

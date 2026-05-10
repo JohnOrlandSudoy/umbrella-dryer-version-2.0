@@ -793,6 +793,15 @@ function UmbrellaDryerModel() {
 
     if (allowSim) {
       slotManager.updateAllSlots(delta)
+      const slots = slotManager.getSlots()
+      const occupied = slots.filter((s) => s.occupied)
+      const allReady =
+        occupied.length > 0 &&
+        occupied.every((s) => s.status === 'ready')
+      if (allReady && sys.status === 'running') {
+        useMachineStore.getState().pauseCycle()
+        useSlotSnapshotStore.getState().setSnapshot(slotManager.snapshot())
+      }
     }
 
     snapshotAccRef.current += delta

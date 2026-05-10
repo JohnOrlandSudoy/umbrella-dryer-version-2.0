@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { HeaterCoilPreset } from '../constants/plantElectrical'
 import { slotManager } from '../simulation/SlotManager'
 import { useSimulationUiStore } from './simulationUiStore'
 import { useSlotSnapshotStore } from './slotSnapshotStore'
@@ -33,6 +34,10 @@ interface MachineState {
   cadViewLighting: boolean
   cycleTime: number
   elapsed: number
+  /** Bottom control drawer — expanded shows full sliders + actions */
+  controlPanelExpanded: boolean
+  /** Single heating coil nameplate selection (whole machine, not per slot). */
+  heaterCoilPreset: HeaterCoilPreset
 }
 
 interface MachineActions {
@@ -59,6 +64,8 @@ interface MachineActions {
   startCycle: () => void
   pauseCycle: () => void
   resetCycle: () => void
+  toggleControlPanel: () => void
+  setHeaterCoilPreset: (preset: HeaterCoilPreset) => void
 }
 
 export const useMachineStore = create<MachineState & MachineActions>((set) => ({
@@ -76,6 +83,8 @@ export const useMachineStore = create<MachineState & MachineActions>((set) => ({
   cadViewLighting: false,
   cycleTime: 30,
   elapsed: 0,
+  controlPanelExpanded: true,
+  heaterCoilPreset: '3mm-1600',
 
   setStatus: (status) => set({ status }),
   setRackRPM: (rackRPM) => set({ rackRPM }),
@@ -197,6 +206,9 @@ export const useMachineStore = create<MachineState & MachineActions>((set) => ({
       heatLevel: s.heatLevel || 0.7,
       systemActive: !s.doorOpen && !s.eStopLatched,
     })),
+  toggleControlPanel: () =>
+    set((s) => ({ controlPanelExpanded: !s.controlPanelExpanded })),
+  setHeaterCoilPreset: (heaterCoilPreset) => set({ heaterCoilPreset }),
   pauseCycle: () =>
     set({
       status: 'paused',
